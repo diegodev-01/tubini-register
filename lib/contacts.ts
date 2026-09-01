@@ -1,10 +1,16 @@
-export const CONTACT_STATUSES = [
-  "Cliente-Dueño",
-  "Cliente-Comprador",
-  "Pendiente",
-  "Descartado",
-] as const;
+import { parseObservaciones } from "./utils/parse-obs";
 
+export const CONTACT_STATUS_MAP = {
+  CLIENTE_DUENO: "Cliente-Dueño",
+  CLIENTE_COMPRADOR: "Cliente-Comprador",
+  PENDIENTE: "Pendiente",
+  DESCARTADO: "Descartado",
+  POR_LLAMAR: "Por Llamar",
+} as const;
+
+export type TwentyContactStatus = keyof typeof CONTACT_STATUS_MAP;
+
+export const CONTACT_STATUSES = Object.values(CONTACT_STATUS_MAP);
 export type ContactStatus = (typeof CONTACT_STATUSES)[number];
 
 export type Contact = {
@@ -13,6 +19,7 @@ export type Contact = {
   lastName: string;
   phone: string;
   status: ContactStatus;
+  observaciones: string;
 };
 
 export type ContactInput = Omit<Contact, "id">;
@@ -24,20 +31,29 @@ export function isContactStatus(value: unknown): value is ContactStatus {
   );
 }
 
+export function toTwentyStatus(status: ContactStatus): TwentyContactStatus {
+  const entry = Object.entries(CONTACT_STATUS_MAP).find(
+    ([_, value]) => value === status,
+  );
+  return (entry ? entry[0] : "PENDIENTE") as TwentyContactStatus;
+}
+
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
 function getStatus(person: Record<string, unknown>): ContactStatus {
-  const customFields = person.customFields;
-  const customStatus =
-    customFields && typeof customFields === "object"
-      ? (customFields as Record<string, unknown>).status ??
-        (customFields as Record<string, unknown>).estado
-      : undefined;
-  const candidate = person.status ?? person.estado ?? customStatus;
+  const rawStatus = person.estadoDelContacto;
 
-  return isContactStatus(candidate) ? candidate : "Pendiente";
+  if (typeof rawStatus === "string" && rawStatus in CONTACT_STATUS_MAP) {
+    return CONTACT_STATUS_MAP[rawStatus as TwentyContactStatus];
+  }
+
+  if (isContactStatus(rawStatus)) {
+    return rawStatus;
+  }
+
+  return "Pendiente";
 }
 
 export function normalizeContact(person: Record<string, unknown>): Contact {
@@ -58,6 +74,7 @@ export function normalizeContact(person: Record<string, unknown>): Contact {
       person.phone ?? phones.primaryPhoneNumber ?? phones.primaryPhone,
     ),
     status: getStatus(person),
+    observaciones: parseObservaciones(person.observaciones),
   };
 }
 

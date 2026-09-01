@@ -1,6 +1,7 @@
 "use client";
 
 import { ThemeToggle } from "@/components/theme-toggle";
+import { CopyButton } from "@/components/ui/copy-button";
 import { Modal } from "@/components/ui/Modal";
 import {
   CONTACT_STATUSES,
@@ -19,14 +20,6 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-
-const emptyForm = {
-  firstName: "",
-  lastName: "",
-  phone: "",
-  estado: "Pendiente" as ContactStatus,
-};
-
 export default function DashboardPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [search, setSearch] = useState("");
@@ -41,6 +34,9 @@ export default function DashboardPage() {
     () => true,
     () => false,
   );
+
+  // Estado para controlar qué contacto se está editando (null si estamos creando uno nuevo)
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
   useEffect(() => {
@@ -68,13 +64,36 @@ export default function DashboardPage() {
     });
   }, [contacts, search, status]);
 
+  const handleOpenCreate = () => {
+    setEditingContact(null);
+    setFormOpen(true);
+  };
+
+  const handleOpenEdit = (contact: Contact) => {
+    setEditingContact(contact);
+    setFormOpen(true);
+  };
+
+  const handleFormSaved = (savedContact: Contact) => {
+    if (editingContact) {
+      // Actualizar en la lista existente
+      setContacts((current) =>
+        current.map((c) => (c.id === savedContact.id ? savedContact : c)),
+      );
+    } else {
+      // Agregar nuevo al inicio
+      setContacts((current) => [savedContact, ...current]);
+    }
+    setFormOpen(false);
+    setEditingContact(null);
+  };
+
   if (!mounted) {
     return <main className="bg-background min-h-screen px-5 pb-24 sm:px-8" />;
   }
 
   return (
     <main className="bg-background text-foreground min-h-screen px-5 pb-24 transition-colors duration-180 sm:px-8">
-      {/* HEADER */}
       <header className="border-line -mx-5 sm:-mx-8 mb-6 flex min-h-26 items-center justify-between border-b px-5 sm:px-8">
         <div>
           <div className="text-accent-dark text-2xl font-extrabold tracking-tight">
@@ -112,10 +131,8 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* DASHBOARD CONTENT */}
       <div className="mx-auto w-full max-w-345 pt-3.5">
-        {/* BARRA DE FILTROS */}
-        <section className="border-line bg-background grid grid-cols-1 gap-2.5 rounded-xl border p-2.5 sm:grid-cols-[1fr_8rem_8rem]">
+        <section className="border-line bg-background grid grid-cols-1 gap-2.5 rounded-xl border p-2.5 sm:grid-cols-[1fr_8rem]">
           <input
             aria-label="Buscar contactos"
             placeholder="Buscar..."
@@ -138,39 +155,54 @@ export default function DashboardPage() {
               </option>
             ))}
           </select>
-          <select
-            aria-label="Filtrar por tipo"
-            defaultValue="Contacto"
-            className="border-line text-foreground focus:border-accent min-h-10 w-full rounded-lg border bg-background/80 px-3.5 outline-none focus:ring-2 focus:ring-amber-500/15 dark:border-transparent"
-          >
-            <option>Contacto</option>
-          </select>
         </section>
 
-        {/* RESUMEN / STATS */}
         <div className="text-muted flex flex-wrap gap-5 px-1.5 py-4 text-xs">
           <span className="inline-flex items-center gap-1.5">
-            <i className="h-2.5 w-2.5 rounded-full bg-blue-500" />
-            Números: <b className="text-foreground">{contacts.length}</b>
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <i className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-            Activos:{" "}
+            <i className="h-2.5 w-2.5 rounded-full bg-red-500" />
+            Descartados:
             <b className="text-foreground">
               {
-                contacts.filter((contact) => contact.status !== "Descartado")
+                contacts.filter((contact) => contact.status === "Descartado")
                   .length
               }
             </b>
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <i className="h-2.5 w-2.5 rounded-full bg-purple-500" />
-            Visibles:{" "}
-            <b className="text-foreground">{filteredContacts.length}</b>
+            <i className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+            Pendientes:
+            <b className="text-foreground">
+              {
+                contacts.filter((contact) => contact.status === "Pendiente")
+                  .length
+              }
+            </b>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <i className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            Clientes:
+            <b className="text-foreground">
+              {
+                contacts.filter(
+                  (contact) =>
+                    contact.status === "Cliente-Comprador" ||
+                    contact.status === "Cliente-Dueño",
+                ).length
+              }
+            </b>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <i className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+            Por llamar:
+            <b className="text-foreground">
+              {
+                contacts.filter((contact) => contact.status === "Por Llamar")
+                  .length
+              }
+            </b>
           </span>
         </div>
 
-        {/* ESTADOS CARGANDO / ERROR / VACÍO */}
         {loading && (
           <div className="border-line text-muted grid gap-2 rounded-2xl border p-16 text-center">
             Cargando contactos...
@@ -194,7 +226,7 @@ export default function DashboardPage() {
 
         {/* TABLA DE CONTACTOS */}
         {!loading && !error && filteredContacts.length > 0 && (
-          <ContactTable contacts={filteredContacts} />
+          <ContactTable contacts={filteredContacts} onEdit={handleOpenEdit} />
         )}
       </div>
 
@@ -202,41 +234,59 @@ export default function DashboardPage() {
       <button
         aria-label="Añadir contacto"
         className="fixed right-7 bottom-7 flex h-13 w-13 cursor-pointer items-center justify-center rounded-full bg-[#924cff] text-2xl text-white shadow-lg shadow-purple-600/50 transition-all hover:-translate-y-0.5 hover:scale-105 hover:bg-[#a367ff]"
-        onClick={() => setFormOpen(true)}
+        onClick={handleOpenCreate}
       >
         +
       </button>
 
-      {/* MODAL FORMULARIO */}
+      {/* MODAL FORMULARIO (Crear / Editar) */}
       {formOpen && (
-        <ContactForm
-          onClose={() => setFormOpen(false)}
-          onCreated={(contact) => {
-            setContacts((current) => [contact, ...current]);
+        <ContactFormModal
+          initialContact={editingContact}
+          onClose={() => {
             setFormOpen(false);
+            setEditingContact(null);
           }}
+          onSaved={handleFormSaved}
         />
       )}
     </main>
   );
 }
 
-function ContactTable({ contacts }: { contacts: Contact[] }) {
+interface ContactTableProps {
+  contacts: Contact[];
+  onEdit?: (contact: Contact) => void;
+}
+
+export function ContactTable({ contacts, onEdit }: ContactTableProps) {
+  const STATUS_ORDER: Record<ContactStatus, number> = {
+    Pendiente: 1,
+    "Por Llamar": 2,
+    "Cliente-Dueño": 3,
+    "Cliente-Comprador": 4,
+    Descartado: 5,
+  };
+
+  const sortedContacts = [...contacts].sort((a, b) => {
+    const priorityA = STATUS_ORDER[a.status] ?? 99;
+    const priorityB = STATUS_ORDER[b.status] ?? 99;
+    return priorityA - priorityB;
+  });
+
   return (
-    <section className="border-line bg-white/55 dark:bg-[#080811]/86 overflow-hidden rounded-2xl border">
-      {/* CABECERA (Oculta en móvil) */}
-      <div className="bg-accent/12 text-accent-dark hidden grid-cols-[minmax(12rem,1.5fr)_minmax(8rem,1fr)_0.75fr_minmax(8rem,1fr)_0.7fr] items-center gap-4 px-4 py-3 text-[0.73rem] font-bold sm:grid">
+    <section className="border-line overflow-hidden rounded-2xl border bg-white/55 dark:bg-[#080811]/86">
+      <div className="bg-accent/12 text-accent-dark hidden grid-cols-[minmax(11rem,1.4fr)_minmax(8.5rem,1fr)_0.8fr_minmax(11rem,1.8fr)_auto] items-center gap-4 px-4 py-3 text-[0.73rem] font-bold sm:grid">
         <span>Cliente</span>
         <span>Teléfono</span>
-        <span>Tipo</span>
         <span>Estado</span>
-        <span>Registro</span>
+        <span>Observaciones</span>
+        <span className="text-right">Acciones</span>
       </div>
 
-      {/* FILAS */}
-      {contacts.map((contact) => (
+      {sortedContacts.map((contact) => (
         <article
-          className="border-line text-muted grid grid-cols-[1fr_auto] items-center gap-2.5 border-t px-4 py-3.5 text-xs first:border-t-0 sm:grid-cols-[minmax(12rem,1.5fr)_minmax(8rem,1fr)_0.75fr_minmax(8rem,1fr)_0.7fr] sm:gap-4"
+          className="border-line text-muted grid grid-cols-[1fr_auto] items-center gap-2.5 border-t px-4 py-3.5 text-xs first:border-t-0 sm:grid-cols-[minmax(11rem,1.4fr)_minmax(8.5rem,1fr)_0.8fr_minmax(11rem,1.8fr)_auto] sm:gap-4"
           key={contact.id || `${contact.firstName}-${contact.phone}`}
         >
           <div className="col-span-1">
@@ -248,39 +298,86 @@ function ContactTable({ contacts }: { contacts: Contact[] }) {
             </small>
           </div>
 
-          <span className="col-span-1 sm:col-auto">{contact.phone}</span>
+          <div className="col-span-1 flex items-center gap-1.5 sm:col-auto">
+            <span className="font-mono text-xs">{contact.phone}</span>
+            {contact.phone && <CopyButton text={contact.phone} />}
+          </div>
 
-          <span className="border-line w-fit rounded-full border px-2 py-0.5 text-[0.68rem]">
-            Contacto
-          </span>
+          <div className="col-span-1 sm:col-auto">
+            <span
+              className={`inline-block rounded-full px-2.5 py-0.5 text-[0.68rem] font-medium ${
+                contact.status === "Descartado"
+                  ? "bg-red-500/15 text-red-600 dark:text-red-400"
+                  : contact.status === "Pendiente"
+                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                    : contact.status === "Por Llamar"
+                      ? "bg-blue-500/15 text-blue-700 dark:text-blue-400"
+                      : contact.status === "Cliente-Dueño"
+                        ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                        : contact.status === "Cliente-Comprador"
+                          ? "bg-teal-500/15 text-teal-700 dark:text-teal-400"
+                          : "bg-gray-500/15 text-gray-700"
+              }`}
+            >
+              {contact.status}
+            </span>
+          </div>
 
-          <span
-            className={`w-fit rounded-full px-2 py-0.5 text-[0.68rem] font-medium ${
-              contact.status === "Descartado"
-                ? "bg-white/10 text-muted"
-                : "bg-accent/14 text-accent-dark"
-            }`}
+          <p
+            className="text-muted col-span-2 line-clamp-3 wrap-break-word text-[0.73rem] sm:col-auto"
+            title={contact.observaciones || undefined}
           >
-            {contact.status}
-          </span>
+            {contact.observaciones || "Sin observaciones"}
+          </p>
 
-          <small className="text-muted col-span-1 text-[0.68rem] sm:col-auto">
-            Contacto
-          </small>
+          <div className="col-span-2 flex items-center justify-end sm:col-auto">
+            <button
+              onClick={() => onEdit?.(contact)}
+              type="button"
+              className="text-muted hover:text-foreground hover:bg-accent/20 border-line flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[0.7rem] font-medium transition-colors"
+              title="Editar contacto"
+            >
+              <svg
+                className="h-3.5 w-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
+                />
+              </svg>
+              <span>Editar</span>
+            </button>
+          </div>
         </article>
       ))}
     </section>
   );
 }
 
-function ContactForm({
+function ContactFormModal({
+  initialContact,
   onClose,
-  onCreated,
+  onSaved,
 }: {
+  initialContact?: Contact | null;
   onClose: () => void;
-  onCreated: (contact: Contact) => void;
+  onSaved: (contact: Contact) => void;
 }) {
-  const [form, setForm] = useState(emptyForm);
+  const isEditing = Boolean(initialContact);
+
+  const [form, setForm] = useState({
+    firstName: initialContact?.firstName || "",
+    lastName: initialContact?.lastName || "",
+    phone: initialContact?.phone || "",
+    estado: initialContact?.status || ("Por Llamar" as ContactStatus),
+    observaciones: initialContact?.observaciones || "",
+  });
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -288,16 +385,71 @@ function ContactForm({
     event.preventDefault();
     setSaving(true);
     setError("");
+
     try {
-      const response = await fetch("/api/customers", {
-        method: "POST",
+      const url = isEditing
+        ? `/api/twenty/people/${initialContact?.id}`
+        : `/api/twenty/people`;
+      const method = isEditing ? "PATCH" : "POST";
+
+      const estadoEnum = form.estado
+        .toUpperCase()
+        .replace(/\s+/g, "_")
+        .replace(/-/g, "_");
+
+      const payload: Record<string, any> = {
+        name: {
+          firstName: form.firstName,
+          lastName: form.lastName,
+        },
+        phones: {
+          primaryPhoneNumber: form.phone,
+          primaryPhoneCountryCode: "BO",
+          primaryPhoneCallingCode: "+591",
+        },
+        estadoDelContacto: estadoEnum,
+        observaciones: {
+          markdown: form.observaciones ? `${form.observaciones}\n` : "",
+          blocknote: JSON.stringify([
+            {
+              id: crypto.randomUUID(),
+              type: "paragraph",
+              props: {
+                backgroundColor: "default",
+                textColor: "default",
+                textAlignment: "left",
+              },
+              content: form.observaciones
+                ? [{ type: "text", text: form.observaciones, styles: {} }]
+                : [],
+              children: [],
+            },
+          ]),
+        },
+      };
+
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
+
       const result = await response.json();
       if (!response.ok)
         throw new Error(result.error || "No se pudo guardar el contacto");
-      onCreated(result.data);
+
+      const savedPerson = result.data || result;
+      const formattedContact: Contact = {
+        id: savedPerson.id,
+        firstName: savedPerson.name?.firstName || form.firstName,
+        lastName: savedPerson.name?.lastName || form.lastName,
+        phone: savedPerson.phones?.primaryPhoneNumber || form.phone,
+        status: form.estado,
+        observaciones:
+          savedPerson.observaciones?.markdown || form.observaciones,
+      };
+
+      onSaved(formattedContact);
     } catch (submitError) {
       setError(
         submitError instanceof Error ? submitError.message : "Ocurrió un error",
@@ -321,10 +473,10 @@ function ContactForm({
         <div className="mb-5 flex items-start justify-between">
           <div>
             <div className="text-accent-dark text-[0.7rem] font-bold tracking-widest uppercase">
-              Nuevo registro
+              {isEditing ? "Editar registro" : "Nuevo registro"}
             </div>
             <h2 id="form-title" className="text-2xl font-bold">
-              Añadir contacto
+              {isEditing ? "Editar contacto" : "Añadir contacto"}
             </h2>
           </div>
           <button
@@ -340,7 +492,6 @@ function ContactForm({
           <label className="text-muted grid gap-2 text-xs font-semibold">
             Nombre
             <input
-              required
               autoFocus
               value={form.firstName}
               onChange={(event) =>
@@ -364,7 +515,6 @@ function ContactForm({
           <label className="text-muted grid gap-2 text-xs font-semibold">
             Teléfono
             <input
-              required
               type="tel"
               value={form.phone}
               onChange={(event) =>
@@ -394,6 +544,18 @@ function ContactForm({
             </select>
           </label>
 
+          <label className="text-muted grid gap-2 text-xs font-semibold">
+            Observaciones
+            <textarea
+              rows={3}
+              value={form.observaciones}
+              onChange={(event) =>
+                setForm({ ...form, observaciones: event.target.value })
+              }
+              className="border-line text-foreground focus:border-accent w-full rounded-lg border bg-white/70 p-3 outline-none focus:ring-2 focus:ring-amber-500/15 dark:bg-[#11111d]"
+            />
+          </label>
+
           {error && (
             <p className="rounded-lg bg-red-100 p-3 text-xs text-red-800 dark:bg-red-950/40 dark:text-red-300">
               {error}
@@ -405,7 +567,11 @@ function ContactForm({
             disabled={saving}
             type="submit"
           >
-            {saving ? "Guardando..." : "Registrar contacto"}
+            {saving
+              ? "Guardando..."
+              : isEditing
+                ? "Actualizar contacto"
+                : "Registrar contacto"}
           </button>
         </form>
       </section>
