@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# firebase
+register-app-tubini-firebase-adminsdk-fbsvc-3bdeabecd1.json
