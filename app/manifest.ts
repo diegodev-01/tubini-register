@@ -3,7 +3,7 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Tubini Register",
-    short_name: "Tubini",
+    short_name: "Tubini Register",
     description: "Registro y seguimiento de contactos de Tubini",
     start_url: "/dashboard",
     scope: "/",
