@@ -20,6 +20,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import toast from "react-hot-toast";
 export default function DashboardPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [search, setSearch] = useState("");
@@ -35,7 +36,6 @@ export default function DashboardPage() {
     () => false,
   );
 
-  // Estado para controlar qué contacto se está editando (null si estamos creando uno nuevo)
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
@@ -219,13 +219,11 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* TABLA DE CONTACTOS */}
         {!loading && !error && filteredContacts.length > 0 && (
           <ContactTable contacts={filteredContacts} onEdit={handleOpenEdit} />
         )}
       </div>
 
-      {/* BOTÓN FLOTANTE (+) */}
       <button
         aria-label="Añadir contacto"
         className="fixed right-7 bottom-7 flex h-13 w-13 cursor-pointer items-center justify-center rounded-full bg-[#924cff] text-2xl text-white shadow-lg shadow-purple-600/50 transition-all hover:-translate-y-0.5 hover:scale-105 hover:bg-[#a367ff]"
@@ -234,7 +232,6 @@ export default function DashboardPage() {
         +
       </button>
 
-      {/* MODAL FORMULARIO (Crear / Editar) */}
       {formOpen && (
         <ContactFormModal
           initialContact={editingContact}
@@ -354,6 +351,39 @@ export function ContactTable({ contacts, onEdit }: ContactTableProps) {
   );
 }
 
+interface ContactPayload {
+  name: {
+    firstName: string;
+    lastName: string;
+  };
+  phones: {
+    primaryPhoneNumber: string;
+    primaryPhoneCountryCode: string;
+    primaryPhoneCallingCode: string;
+  };
+  estadoDelContacto: string;
+  observaciones: {
+    markdown: string;
+    blocknote:
+      | {
+          id: string;
+          type: string;
+          props: {
+            backgroundColor: string;
+            textColor: string;
+            textAlignment: string;
+          };
+          content: {
+            type: string;
+            text: string;
+            styles: Record<string, unknown>;
+          }[];
+          children: unknown[];
+        }[]
+      | string;
+  };
+}
+
 function ContactFormModal({
   initialContact,
   onClose,
@@ -392,7 +422,7 @@ function ContactFormModal({
         .replace(/\s+/g, "_")
         .replace(/-/g, "_");
 
-      const payload: Record<string, any> = {
+      const payload: ContactPayload = {
         name: {
           firstName: form.firstName,
           lastName: form.lastName,
@@ -432,7 +462,14 @@ function ContactFormModal({
       const result = await response.json();
       if (!response.ok)
         throw new Error(result.error || "No se pudo guardar el contacto");
-
+      else
+        toast.success(
+          isEditing ? "Contacto actualizado" : "Contacto registrado",
+          {
+            duration: 4000,
+            position: "top-right",
+          },
+        );
       const savedPerson = result.data || result;
       const formattedContact: Contact = {
         id: savedPerson.id,
@@ -448,6 +485,15 @@ function ContactFormModal({
     } catch (submitError) {
       setError(
         submitError instanceof Error ? submitError.message : "Ocurrió un error",
+      );
+      toast.error(
+        isEditing
+          ? "Error al actualizar el contacto"
+          : "Error al registrar el contacto",
+        {
+          duration: 4000,
+          position: "top-right",
+        },
       );
     } finally {
       setSaving(false);
@@ -511,6 +557,7 @@ function ContactFormModal({
             Teléfono
             <input
               type="tel"
+              required
               value={form.phone}
               onChange={(event) =>
                 setForm({ ...form, phone: event.target.value })
