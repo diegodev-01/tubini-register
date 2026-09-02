@@ -38,7 +38,6 @@ export const signIn = async (email: string, password: string) => {
       typeof window !== "undefined" ? window.location.origin : TWENTY_URL;
     const metadataEndpoint = `${TWENTY_URL.replace(/\/$/, "")}/metadata`;
 
-    // 1. Obtener el loginToken inicial mediante GraphQL
     const responseStep1 = await fetch(metadataEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -83,7 +82,6 @@ export const signIn = async (email: string, password: string) => {
       throw new Error("No se pudo autenticar las credenciales en Twenty.");
     }
 
-    // 2. Canjear el loginToken por los tokens definitivos
     const responseStep2 = await fetch(metadataEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -136,18 +134,16 @@ export const signIn = async (email: string, password: string) => {
       throw new Error("No se pudieron obtener los tokens de sesión finales.");
     }
 
-    // 3. Guardar el access token (expira en 30 mins -> aprox 1/48 de día o se maneja por cookie de sesión)
     Cookies.set("tubini-token", finalAccessToken, {
-      expires: 1 / 48, // 30 minutos
+      expires: 1 / 48,
       path: "/",
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
     });
 
-    // 4. Guardar el refresh token (expira en 5 días)
     if (finalRefreshToken) {
       Cookies.set("tubini-refresh-token", finalRefreshToken, {
-        expires: 5, // 5 días
+        expires: 5,
         path: "/",
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
@@ -158,8 +154,7 @@ export const signIn = async (email: string, password: string) => {
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : "Error de autenticación";
-    console.error("Error en signIn:", errorMessage);
-    throw new Error(`Error signing in: ${errorMessage}`);
+    throw new Error(errorMessage);
   }
 };
 

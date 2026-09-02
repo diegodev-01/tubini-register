@@ -23,7 +23,18 @@ export default function LoginPage() {
 
       router.push("/dashboard");
     } catch (error) {
-      console.error("Error al iniciar sesión:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Ocurrió un error al iniciar sesión";
+      const message =
+        errorMessage.toLowerCase().includes("credentials") ||
+        errorMessage.toLowerCase().includes("wrong")
+          ? "Correo o contraseña incorrectos"
+          : errorMessage;
+
+      methods.setError("root", {
+        type: "manual",
+        message,
+      });
     }
   };
 
@@ -49,6 +60,11 @@ export default function LoginPage() {
               label="Contraseña"
               type="password"
             />
+            {methods.formState.errors.root && (
+              <div className="text-red-500 text-xs">
+                {methods.formState.errors.root.message}
+              </div>
+            )}
 
             <button
               type="submit"
