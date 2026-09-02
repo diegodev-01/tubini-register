@@ -22,7 +22,10 @@ import {
 } from "react";
 import toast from "react-hot-toast";
 import "react-phone-number-input/style.css";
-import PhoneInput from "react-phone-number-input";
+import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
+import z from "zod";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 export default function DashboardPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -354,38 +357,26 @@ export function ContactTable({ contacts, onEdit }: ContactTableProps) {
   );
 }
 
-interface ContactPayload {
-  name: {
-    firstName: string;
-    lastName: string;
-  };
-  phones: {
-    primaryPhoneNumber: string;
-    primaryPhoneCountryCode: string;
-    primaryPhoneCallingCode: string;
-  };
-  estadoDelContacto: string;
-  observaciones: {
-    markdown: string;
-    blocknote:
-      | {
-          id: string;
-          type: string;
-          props: {
-            backgroundColor: string;
-            textColor: string;
-            textAlignment: string;
-          };
-          content: {
-            type: string;
-            text: string;
-            styles: Record<string, unknown>;
-          }[];
-          children: unknown[];
-        }[]
-      | string;
-  };
-}
+const contactSchema = z.object({
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  phone: z
+    .string()
+    .min(1, "El número de teléfono es obligatorio")
+    .refine((val) => isValidPhoneNumber(val), {
+      message: `Ingrese un número de teléfono válido para el país seleccionado`,
+    }),
+  estado: z.enum([
+    "Pendiente",
+    "Por Llamar",
+    "Cliente-Dueño",
+    "Cliente-Comprador",
+    "Descartado",
+  ] as [ContactStatus, ...ContactStatus[]]),
+  observaciones: z.string().optional(),
+});
+
+type ContactFormValues = z.infer<typeof contactSchema>;
 
 function ContactFormModal({
   initialContact,
@@ -397,20 +388,26 @@ function ContactFormModal({
   onSaved: (contact: Contact) => void;
 }) {
   const isEditing = Boolean(initialContact);
-
-  const [form, setForm] = useState({
-    firstName: initialContact?.firstName || "",
-    lastName: initialContact?.lastName || "",
-    phone: initialContact?.phone || "",
-    estado: initialContact?.status || ("Por Llamar" as ContactStatus),
-    observaciones: initialContact?.observaciones || "",
-  });
-
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm<ContactFormValues>({
+    resolver: zodResolver(contactSchema),
+    defaultValues: {
+      firstName: initialContact?.firstName || "",
+      lastName: initialContact?.lastName || "",
+      phone: initialContact?.phone || "",
+      estado: initialContact?.status || "Por Llamar",
+      observaciones: initialContact?.observaciones || "",
+    },
+  });
+
+  const onSubmit = async (data: ContactFormValues) => {
     setSaving(true);
     setError("");
 
@@ -420,24 +417,24 @@ function ContactFormModal({
         : `/api/twenty/people`;
       const method = isEditing ? "PATCH" : "POST";
 
-      const estadoEnum = form.estado
+      const estadoEnum = data.estado
         .toUpperCase()
         .replace(/\s+/g, "_")
         .replace(/-/g, "_");
 
-      const payload: ContactPayload = {
+      const payload = {
         name: {
-          firstName: form.firstName,
-          lastName: form.lastName,
+          firstName: data.firstName || "",
+          lastName: data.lastName || "",
         },
         phones: {
-          primaryPhoneNumber: form.phone,
+          primaryPhoneNumber: data.phone,
           primaryPhoneCountryCode: "BO",
           primaryPhoneCallingCode: "+591",
         },
         estadoDelContacto: estadoEnum,
         observaciones: {
-          markdown: form.observaciones ? `${form.observaciones}\n` : "",
+          markdown: data.observaciones ? `${data.observaciones}\n` : "",
           blocknote: JSON.stringify([
             {
               id: crypto.randomUUID(),
@@ -447,8 +444,8 @@ function ContactFormModal({
                 textColor: "default",
                 textAlignment: "left",
               },
-              content: form.observaciones
-                ? [{ type: "text", text: form.observaciones, styles: {} }]
+              content: data.observaciones
+                ? [{ type: "text", text: data.observaciones, styles: {} }]
                 : [],
               children: [],
             },
@@ -476,12 +473,12 @@ function ContactFormModal({
       const savedPerson = result.data || result;
       const formattedContact: Contact = {
         id: savedPerson.id,
-        firstName: savedPerson.name?.firstName || form.firstName,
-        lastName: savedPerson.name?.lastName || form.lastName,
-        phone: savedPerson.phones?.primaryPhoneNumber || form.phone,
-        status: form.estado,
+        firstName: savedPerson.name?.firstName || data.firstName || "",
+        lastName: savedPerson.name?.lastName || data.lastName || "",
+        phone: savedPerson.phones?.primaryPhoneNumber || data.phone,
+        status: data.estado,
         observaciones:
-          savedPerson.observaciones?.markdown || form.observaciones,
+          savedPerson.observaciones?.markdown || data.observaciones || "",
       };
 
       onSaved(formattedContact);
@@ -501,7 +498,7 @@ function ContactFormModal({
     } finally {
       setSaving(false);
     }
-  }
+  };
 
   return (
     <div
@@ -532,15 +529,12 @@ function ContactFormModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="grid gap-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
           <label className="text-muted grid gap-2 text-xs font-semibold">
             Nombre
             <input
               autoFocus
-              value={form.firstName}
-              onChange={(event) =>
-                setForm({ ...form, firstName: event.target.value })
-              }
+              {...register("firstName")}
               className="border-line text-foreground focus:border-accent min-h-12 w-full rounded-lg border px-3.5 outline-none focus:ring-2 focus:ring-amber-500/15"
             />
           </label>
@@ -548,35 +542,39 @@ function ContactFormModal({
           <label className="text-muted grid gap-2 text-xs font-semibold">
             Apellido
             <input
-              value={form.lastName}
-              onChange={(event) =>
-                setForm({ ...form, lastName: event.target.value })
-              }
+              {...register("lastName")}
               className="border-line text-foreground focus:border-accent min-h-12 w-full rounded-lg border px-3.5 outline-none focus:ring-2 focus:ring-amber-500/15"
             />
           </label>
 
           <label className="text-muted grid gap-2 text-xs font-semibold">
-            Teléfono
-            <PhoneInput
-              international
-              defaultCountry="BO"
-              value={form.phone}
-              onChange={(value) => setForm({ ...form, phone: value || "" })}
-              className="border-line text-foreground focus:border-accent min-h-12 w-full rounded-lg border px-3.5 outline-none focus-within:ring-2 focus-within:ring-amber-500/15 "
+            <div className="flex items-center gap-1">
+              Teléfono <span className="text-red-500">*</span>
+            </div>
+            <Controller
+              name="phone"
+              control={control}
+              render={({ field }) => (
+                <PhoneInput
+                  international
+                  defaultCountry="BO"
+                  value={field.value}
+                  onChange={field.onChange}
+                  className="border-line text-foreground focus:border-accent min-h-12 w-full rounded-lg border px-3.5 outline-none focus-within:ring-2 focus-within:ring-amber-500/15"
+                />
+              )}
             />
+            {errors.phone && (
+              <span className="text-[0.7rem] text-red-500 font-medium">
+                {errors.phone.message}
+              </span>
+            )}
           </label>
 
           <label className="text-muted grid gap-2 text-xs font-semibold">
             Estado
             <select
-              value={form.estado}
-              onChange={(event) =>
-                setForm({
-                  ...form,
-                  estado: event.target.value as ContactStatus,
-                })
-              }
+              {...register("estado")}
               className="border-line text-foreground focus:border-accent min-h-12 w-full rounded-lg border px-3.5 outline-none focus:ring-2 focus:ring-amber-500/15"
             >
               {CONTACT_STATUSES.map((item) => (
@@ -591,10 +589,7 @@ function ContactFormModal({
             Observaciones
             <textarea
               rows={3}
-              value={form.observaciones}
-              onChange={(event) =>
-                setForm({ ...form, observaciones: event.target.value })
-              }
+              {...register("observaciones")}
               className="border-line text-foreground focus:border-accent w-full rounded-lg border p-3 outline-none focus:ring-2 focus:ring-amber-500/15"
             />
           </label>
