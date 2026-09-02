@@ -76,12 +76,10 @@ export default function DashboardPage() {
 
   const handleFormSaved = (savedContact: Contact) => {
     if (editingContact) {
-      // Actualizar en la lista existente
       setContacts((current) =>
         current.map((c) => (c.id === savedContact.id ? savedContact : c)),
       );
     } else {
-      // Agregar nuevo al inicio
       setContacts((current) => [savedContact, ...current]);
     }
     setFormOpen(false);
@@ -96,11 +94,8 @@ export default function DashboardPage() {
     <main className="bg-background text-foreground min-h-screen px-5 pb-24 transition-colors duration-180 sm:px-8">
       <header className="border-line -mx-5 sm:-mx-8 mb-6 flex min-h-26 items-center justify-between border-b px-5 sm:px-8">
         <div>
-          <div className="text-accent-dark text-2xl font-extrabold tracking-tight">
-            Tubini Inmuebles
-          </div>
-          <div className="text-muted mt-1 text-[0.75rem] tracking-widest uppercase">
-            DIEGO@DIEGUITO.DEV
+          <div className="text-accent-dark text-xl font-extrabold tracking-tight">
+            Clientes Tubini
           </div>
         </div>
         <div className="flex items-center gap-2">
