@@ -35,3 +35,13 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
 }
+
+.PhoneInputCountrySelect {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+.PhoneInputCountrySelect option {
+  background-color: var(--background);
+  color: var(--foreground);
+}

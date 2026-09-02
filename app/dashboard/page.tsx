@@ -21,6 +21,9 @@ import {
   useSyncExternalStore,
 } from "react";
 import toast from "react-hot-toast";
+import "react-phone-number-input/style.css";
+import PhoneInput from "react-phone-number-input";
+
 export default function DashboardPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [search, setSearch] = useState("");
@@ -267,7 +270,7 @@ export function ContactTable({ contacts, onEdit }: ContactTableProps) {
   });
 
   return (
-    <section className="border-line overflow-hidden rounded-2xl border bg-white/55 dark:bg-[#080811]/86">
+    <section className="border-line overflow-hidden rounded-2xl border bg-background">
       <div className="bg-accent/12 text-accent-dark hidden grid-cols-[minmax(11rem,1.4fr)_minmax(8.5rem,1fr)_0.8fr_minmax(11rem,1.8fr)_auto] items-center gap-4 px-4 py-3 text-[0.73rem] font-bold sm:grid">
         <span>Cliente</span>
         <span>Teléfono</span>
@@ -538,7 +541,7 @@ function ContactFormModal({
               onChange={(event) =>
                 setForm({ ...form, firstName: event.target.value })
               }
-              className="border-line text-foreground focus:border-accent min-h-12 w-full rounded-lg border bg-white/70 px-3.5 outline-none focus:ring-2 focus:ring-amber-500/15 dark:bg-[#11111d]"
+              className="border-line text-foreground focus:border-accent min-h-12 w-full rounded-lg border px-3.5 outline-none focus:ring-2 focus:ring-amber-500/15"
             />
           </label>
 
@@ -549,20 +552,18 @@ function ContactFormModal({
               onChange={(event) =>
                 setForm({ ...form, lastName: event.target.value })
               }
-              className="border-line text-foreground focus:border-accent min-h-12 w-full rounded-lg border bg-white/70 px-3.5 outline-none focus:ring-2 focus:ring-amber-500/15 dark:bg-[#11111d]"
+              className="border-line text-foreground focus:border-accent min-h-12 w-full rounded-lg border px-3.5 outline-none focus:ring-2 focus:ring-amber-500/15"
             />
           </label>
 
           <label className="text-muted grid gap-2 text-xs font-semibold">
             Teléfono
-            <input
-              type="tel"
-              required
+            <PhoneInput
+              international
+              defaultCountry="BO"
               value={form.phone}
-              onChange={(event) =>
-                setForm({ ...form, phone: event.target.value })
-              }
-              className="border-line text-foreground focus:border-accent min-h-12 w-full rounded-lg border bg-white/70 px-3.5 outline-none focus:ring-2 focus:ring-amber-500/15 dark:bg-[#11111d]"
+              onChange={(value) => setForm({ ...form, phone: value || "" })}
+              className="border-line text-foreground focus:border-accent min-h-12 w-full rounded-lg border px-3.5 outline-none focus-within:ring-2 focus-within:ring-amber-500/15 "
             />
           </label>
 
@@ -576,7 +577,7 @@ function ContactFormModal({
                   estado: event.target.value as ContactStatus,
                 })
               }
-              className="border-line text-foreground focus:border-accent min-h-12 w-full rounded-lg border bg-white/70 px-3.5 outline-none focus:ring-2 focus:ring-amber-500/15 dark:bg-[#11111d]"
+              className="border-line text-foreground focus:border-accent min-h-12 w-full rounded-lg border px-3.5 outline-none focus:ring-2 focus:ring-amber-500/15"
             >
               {CONTACT_STATUSES.map((item) => (
                 <option key={item} value={item}>
@@ -594,12 +595,12 @@ function ContactFormModal({
               onChange={(event) =>
                 setForm({ ...form, observaciones: event.target.value })
               }
-              className="border-line text-foreground focus:border-accent w-full rounded-lg border bg-white/70 p-3 outline-none focus:ring-2 focus:ring-amber-500/15 dark:bg-[#11111d]"
+              className="border-line text-foreground focus:border-accent w-full rounded-lg border p-3 outline-none focus:ring-2 focus:ring-amber-500/15"
             />
           </label>
 
           {error && (
-            <p className="rounded-lg bg-red-100 p-3 text-xs text-red-800 dark:bg-red-950/40 dark:text-red-300">
+            <p className="rounded-lg p-3 text-xs text-red-800 dark:text-red-300">
               {error}
             </p>
           )}
