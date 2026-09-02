@@ -42,8 +42,6 @@ self.addEventListener("fetch", (event) => {
 
   const isPublicAsset =
     url.pathname.startsWith("/_next/static/") ||
-    url.pathname.startsWith("/icon") ||
-    url.pathname.startsWith("/apple-icon") ||
     url.pathname === "/manifest.webmanifest" ||
     url.pathname === "/favicon.ico";
 
