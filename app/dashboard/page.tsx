@@ -11,21 +11,15 @@ import {
 import { useModal } from "@/lib/hooks/useModal";
 import fetchContacts from "@/services/auth/contacts/contacts.services";
 import { signOut } from "@/services/auth/sign-in";
-import { LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
-import {
-  FormEvent,
-  useEffect,
-  useMemo,
-  useState,
-  useSyncExternalStore,
-} from "react";
-import toast from "react-hot-toast";
-import "react-phone-number-input/style.css";
-import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
-import z from "zod";
-import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { LogOut, RefreshCcw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { Controller, useForm } from "react-hook-form";
+import toast from "react-hot-toast";
+import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
+import "react-phone-number-input/style.css";
+import z from "zod";
 
 export default function DashboardPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -96,6 +90,17 @@ export default function DashboardPage() {
     return <main className="bg-background min-h-screen px-5 pb-24 sm:px-8" />;
   }
 
+  const handleRefresh = async () => {
+    if (loading) return;
+
+    setLoading(true);
+    try {
+      await fetchContacts();
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="bg-background text-foreground min-h-screen px-5 pb-24 transition-colors duration-180 sm:px-8">
       <header className="border-line -mx-5 sm:-mx-8 mb-6 flex min-h-26 items-center justify-between border-b px-5 sm:px-8">
@@ -133,7 +138,7 @@ export default function DashboardPage() {
       </header>
 
       <div className="mx-auto w-full max-w-345 pt-3.5">
-        <section className="border-line bg-background grid grid-cols-1 gap-2.5 rounded-xl border p-2.5 sm:grid-cols-[1fr_8rem]">
+        <section className="border-line bg-background grid grid-cols-1 gap-2.5 rounded-xl border p-2.5 sm:grid-cols-[1fr_auto_auto] sm:items-center">
           <input
             aria-label="Buscar contactos"
             placeholder="Buscar..."
@@ -141,6 +146,7 @@ export default function DashboardPage() {
             onChange={(event) => setSearch(event.target.value)}
             className="border-line text-foreground focus:border-accent min-h-10 w-full rounded-lg border bg-background px-3.5 outline-none focus:ring-2 focus:ring-amber-500/15 dark:border-transparent "
           />
+
           <select
             aria-label="Filtrar por estado"
             value={status}
@@ -156,6 +162,17 @@ export default function DashboardPage() {
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            aria-label="Recargar contactos"
+            disabled={loading}
+            onClick={handleRefresh}
+            className="border-line text-foreground hover:bg-muted focus:border-accent flex min-h-10 min-w-10 items-center justify-center rounded-lg border bg-background outline-none focus:ring-2 focus:ring-amber-500/15 disabled:opacity-50 dark:border-transparent"
+          >
+            <RefreshCcw
+              className={`h-4 w-4 transition-transform ${loading ? "animate-spin" : ""}`}
+            />
+          </button>
         </section>
 
         <div className="text-muted flex flex-wrap gap-5 px-1.5 py-4 text-xs">
@@ -288,12 +305,23 @@ export function ContactTable({ contacts, onEdit }: ContactTableProps) {
           key={contact.id || `${contact.firstName}-${contact.phone}`}
         >
           <div className="col-span-1">
-            <strong className="text-foreground block text-sm font-semibold">
-              {contact.firstName} {contact.lastName}
-            </strong>
-            <small className="text-muted text-[0.68rem]">
-              Contacto registrado
-            </small>
+            {contact.firstName || contact.lastName ? (
+              <strong className="text-foreground block text-sm font-semibold">
+                {contact.firstName} {contact.lastName}
+              </strong>
+            ) : (
+              <strong className="text-foreground block text-sm font-semibold">
+                Sin nombre
+              </strong>
+            )}
+            <div className="text-muted text-[0.68rem] flex flex-col gap-0.5">
+              <span>
+                Registrado por {contact.createdBy?.name} y actulizado el{" "}
+                {contact.updatedAt
+                  ? new Date(contact.updatedAt).toLocaleString()
+                  : "N/A"}
+              </span>
+            </div>
           </div>
 
           <div className="col-span-1 flex items-center gap-1.5 sm:col-auto">

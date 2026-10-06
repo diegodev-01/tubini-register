@@ -20,6 +20,16 @@ export type Contact = {
   phone: string;
   status: ContactStatus;
   observaciones: string;
+  createdBy?: {
+    source: string;
+    name: string;
+  };
+  updatedBy?: {
+    source: string;
+    name: string;
+  };
+  agenteAsignadoId?: string;
+  updatedAt?: string;
 };
 
 export type ContactInput = Omit<Contact, "id">;
@@ -75,6 +85,30 @@ export function normalizeContact(person: Record<string, unknown>): Contact {
     ),
     status: getStatus(person),
     observaciones: parseObservaciones(person.observaciones),
+    createdBy:
+      person.createdBy && typeof person.createdBy === "object"
+        ? {
+            source: stringValue(
+              (person.createdBy as Record<string, unknown>).source,
+            ),
+            name: stringValue(
+              (person.createdBy as Record<string, unknown>).name,
+            ),
+          }
+        : undefined,
+    updatedBy:
+      person.updatedBy && typeof person.updatedBy === "object"
+        ? {
+            source: stringValue(
+              (person.updatedBy as Record<string, unknown>).source,
+            ),
+            name: stringValue(
+              (person.updatedBy as Record<string, unknown>).name,
+            ),
+          }
+        : undefined,
+    updatedAt:
+      typeof person.updatedAt === "string" ? person.updatedAt : undefined,
   };
 }
 
